@@ -1,12 +1,15 @@
 import { Button } from "@/components/ui/button";
+import { UserMenu } from "@/components/ui/UserMenu";
 import { Truck } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 interface HeaderProps {
   showLogin?: boolean;
 }
 
 export const Header = ({ showLogin = true }: HeaderProps) => {
+  const location = useLocation();
+  const isLoggedIn = !showLogin || !["/", "/login"].includes(location.pathname);
   return (
     <header className="bg-card border-b border-border px-6 py-4" role="banner">
       <div className="flex items-center justify-between max-w-7xl mx-auto">
@@ -24,14 +27,16 @@ export const Header = ({ showLogin = true }: HeaderProps) => {
           </div>
         </Link>
         
-        {showLogin && (
+        {showLogin && !isLoggedIn ? (
           <Button 
             asChild
             className="bg-primary hover:bg-primary-hover text-primary-foreground font-medium"
           >
             <Link to="/login">Login</Link>
           </Button>
-        )}
+        ) : isLoggedIn ? (
+          <UserMenu />
+        ) : null}
       </div>
     </header>
   );

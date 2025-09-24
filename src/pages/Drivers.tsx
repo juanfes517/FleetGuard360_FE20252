@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { CreateDriverModal } from "@/components/modals/CreateDriverModal";
+import { EditDriverModal } from "@/components/modals/EditDriverModal";
 import { Search, Plus, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +19,9 @@ const drivers = [
 
 export default function Drivers() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<typeof drivers[0] | undefined>();
   const { toast } = useToast();
 
   const filteredDrivers = drivers.filter(driver =>
@@ -24,6 +29,11 @@ export default function Drivers() {
     driver.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     driver.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleEdit = (driver: typeof drivers[0]) => {
+    setSelectedDriver(driver);
+    setEditModalOpen(true);
+  };
 
   const handleDelete = (driverId: string, username: string) => {
     toast({
@@ -68,6 +78,7 @@ export default function Drivers() {
             </Button>
             <Button 
               className="bg-primary hover:bg-primary-hover"
+              onClick={() => setCreateModalOpen(true)}
               aria-label="Registrar nuevo conductor"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -106,6 +117,7 @@ export default function Drivers() {
                           variant="outline"
                           size="sm"
                           className="border-border text-foreground hover:bg-muted"
+                          onClick={() => handleEdit(driver)}
                           aria-label={`Editar conductor ${driver.username}`}
                         >
                           <Edit className="h-4 w-4 mr-1" />
@@ -170,6 +182,24 @@ export default function Drivers() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <CreateDriverModal 
+        open={createModalOpen} 
+        onOpenChange={setCreateModalOpen}
+        onDriverCreated={() => {
+          // Refresh driver list here if needed
+        }}
+      />
+      
+      <EditDriverModal 
+        open={editModalOpen} 
+        onOpenChange={setEditModalOpen}
+        driver={selectedDriver}
+        onDriverUpdated={() => {
+          // Refresh driver list here if needed
+        }}
+      />
     </Layout>
   );
 }

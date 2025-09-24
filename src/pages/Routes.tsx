@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { CreateRouteModal } from "@/components/modals/CreateRouteModal";
+import { EditRouteModal } from "@/components/modals/EditRouteModal";
 import { Search, Plus, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,12 +19,20 @@ const routes = [
 
 export default function Routes() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState<typeof routes[0] | undefined>();
   const { toast } = useToast();
 
   const filteredRoutes = routes.filter(route =>
     route.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
     route.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleEdit = (route: typeof routes[0]) => {
+    setSelectedRoute(route);
+    setEditModalOpen(true);
+  };
 
   const handleDelete = (routeId: string, routeName: string) => {
     toast({
@@ -67,6 +77,7 @@ export default function Routes() {
             </Button>
             <Button 
               className="bg-primary hover:bg-primary-hover"
+              onClick={() => setCreateModalOpen(true)}
               aria-label="Registrar nueva ruta"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -103,6 +114,7 @@ export default function Routes() {
                           variant="outline"
                           size="sm"
                           className="border-border text-foreground hover:bg-muted"
+                          onClick={() => handleEdit(route)}
                           aria-label={`Editar ruta ${route.id} - ${route.name}`}
                         >
                           <Edit className="h-4 w-4 mr-1" />
@@ -167,6 +179,24 @@ export default function Routes() {
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <CreateRouteModal 
+        open={createModalOpen} 
+        onOpenChange={setCreateModalOpen}
+        onRouteCreated={() => {
+          // Refresh routes list here if needed
+        }}
+      />
+      
+      <EditRouteModal 
+        open={editModalOpen} 
+        onOpenChange={setEditModalOpen}
+        route={selectedRoute}
+        onRouteUpdated={() => {
+          // Refresh routes list here if needed
+        }}
+      />
     </Layout>
   );
 }
