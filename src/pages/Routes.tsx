@@ -102,7 +102,7 @@ export default function Routes() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-secondary text-secondary-foreground hover:bg-secondary"
+                          className="border-border text-foreground hover:bg-muted"
                           aria-label={`Editar ruta ${route.id} - ${route.name}`}
                         >
                           <Edit className="h-4 w-4 mr-1" />
