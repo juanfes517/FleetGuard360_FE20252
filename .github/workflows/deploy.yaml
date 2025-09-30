@@ -38,9 +38,9 @@ jobs:
       - name: Install vercel cli
         run: npm install -g vercel
       - name: Pull environment variables
-        run: vercel pull --yes --token=$VERCEL_TOKEN
+        run: vercel pull --yes --token=${{ env.VERCEL_TOKEN }}
       - name: Deploy
-        run: vercel deploy --no-wait --token=$VERCEL_TOKEN
+        run: vercel deploy --no-wait --token=${{ env.VERCEL_TOKEN }}
 
   Deploy-Prod:
     name: Deploy to vercel prod
@@ -60,6 +60,6 @@ jobs:
       - name: Install vercel cli
         run: npm install -g vercel
       - name: Pull environment variables
-        run: vercel pull --yes --token=$VERCEL_TOKEN
+        run: vercel pull --yes --token=${{ env.VERCEL_TOKEN }}
       - name: Deploy
-        run: vercel deploy --prod --no-wait --token=$VERCEL_TOKEN
+        run: vercel deploy --prod --no-wait --token=${{ env.VERCEL_TOKEN }}
