@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  sync:
+  Syncronize-Front-to-Monorepo:
     runs-on: ubuntu-latest
 
     steps:
