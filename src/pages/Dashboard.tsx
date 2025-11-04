@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Edit, Trash2, Route, Users } from "lucide-react";
+import { Search, Plus, Edit, Trash2, Route, Users, Clock, Bell } from "lucide-react";
+
 import { Link } from "react-router-dom";
 
 export default function Dashboard() {
@@ -82,7 +83,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -102,9 +103,9 @@ export default function Dashboard() {
                   </Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link to="/routes/new">
+                  <Link to="/routes">
                     <Plus className="h-4 w-4 mr-2" />
-                    Nueva Ruta
+                    + Nueva Ruta
                   </Link>
                 </Button>
               </div>
@@ -130,9 +131,65 @@ export default function Dashboard() {
                   </Link>
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link to="/drivers/new">
+                  <Link to="/drivers">
                     <Plus className="h-4 w-4 mr-2" />
                     Registrar Conductor
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" aria-hidden="true" />
+                Gestión de Turnos
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                Asigna y gestiona los turnos de trabajo de conductores en rutas.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button asChild className="bg-primary hover:bg-primary-hover">
+                  <Link to="/turnos">
+                    <Clock className="h-4 w-4 mr-2" />
+                    Ver Turnos
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/turnos">
+                    <Plus className="h-4 w-4 mr-2" />
+                    + Asignar Turno
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" aria-hidden="true" />
+                Notificaciones de Jornada
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                Consulta y gestiona las alertas configuradas para los conductores en tiempo real.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button asChild className="flex-1 min-w-0 bg-primary hover:bg-primary-hover">
+                  <Link to="/driver-notifications" className="flex items-center gap-2 truncate">
+                    <Bell className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                    <span className="truncate">Ver Notificaciones</span>
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild className="flex-1 min-w-0">
+                  <Link to="/driver-dashboard" className="flex items-center gap-2 truncate">
+                    <Clock className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                    <span className="truncate">Ir al Panel de Conductor</span>
                   </Link>
                 </Button>
               </div>
