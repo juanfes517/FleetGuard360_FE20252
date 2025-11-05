@@ -1,13 +1,63 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Edit, Trash2, Route, Users, Clock, Bell } from "lucide-react";
-
+import { getAuthData } from "@/services/api";
 import { Link } from "react-router-dom";
 
+const API_BASE_URL = "https://fabricaescuela-2025-2.onrender.com/api";
+
 export default function Dashboard() {
+  const [rutasActivas, setRutasActivas] = useState<number>(0);
+  const [conductores, setConductores] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      setLoading(true);
+      const authData = getAuthData();
+      const token = authData.token;
+
+      // Cargar rutas
+      const rutasResponse = await fetch(`${API_BASE_URL}/rutas`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (rutasResponse.ok) {
+        const rutasData = await rutasResponse.json();
+        setRutasActivas(Array.isArray(rutasData) ? rutasData.length : 0);
+      }
+
+      // Cargar conductores
+      const conductoresResponse = await fetch(`${API_BASE_URL}/conductores`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (conductoresResponse.ok) {
+        const conductoresData = await conductoresResponse.json();
+        setConductores(Array.isArray(conductoresData) ? conductoresData.length : 0);
+      }
+    } catch (error) {
+      console.error('Error cargando estadísticas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <Layout showLogin={false}>
       <div className="space-y-8">
@@ -31,7 +81,9 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">5</div>
+              <div className="text-2xl font-bold text-foreground">
+                {loading ? "..." : rutasActivas}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Rutas en operación
               </p>
@@ -46,7 +98,9 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">12</div>
+              <div className="text-2xl font-bold text-foreground">
+                {loading ? "..." : conductores}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Conductores registrados
               </p>

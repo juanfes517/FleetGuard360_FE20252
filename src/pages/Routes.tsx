@@ -9,16 +9,16 @@ import { CreateRouteModal } from "@/components/modals/CreateRouteModal";
 import { EditRouteModal } from "@/components/modals/EditRouteModal";
 import { Search, Plus, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { rutasAPI } from "@/services/api";
+import { getAuthData } from "@/services/api";
+
+const API_BASE_URL = "https://fabricaescuela-2025-2.onrender.com/api";
 
 interface Route {
   id: number;
-  codigo?: string;
   nombre: string;
-  origen?: string;
-  destino?: string;
-  duracionEnMinutos?: number;
-  description?: string;
+  origen: string;
+  destino: string;
+  duracionEnMinutos: number;
 }
 
 export default function Routes() {
@@ -37,7 +37,23 @@ export default function Routes() {
   const loadRoutes = async () => {
     try {
       setLoading(true);
-      const data = await rutasAPI.getAll();
+      const authData = getAuthData();
+      const token = authData.token;
+
+      const response = await fetch(`${API_BASE_URL}/rutas`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al cargar rutas");
+      }
+
+      const data = await response.json() as Route[];
       setRoutes(data);
     } catch (error: any) {
       console.error('Error cargando rutas:', error);
@@ -52,8 +68,9 @@ export default function Routes() {
   };
 
   const filteredRoutes = routes.filter(route =>
-      route.codigo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      route.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      route.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      route.origen?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      route.destino?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleEdit = (route: Route) => {
@@ -63,7 +80,22 @@ export default function Routes() {
 
   const handleDelete = async (routeId: number, routeName: string) => {
     try {
-      await rutasAPI.delete(routeId);
+      const authData = getAuthData();
+      const token = authData.token;
+
+      const response = await fetch(`${API_BASE_URL}/rutas/${routeId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al eliminar la ruta");
+      }
+
       toast({
         title: "Ruta eliminada",
         description: `La ruta ${routeName} ha sido eliminada del sistema.`,
@@ -102,7 +134,7 @@ export default function Routes() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-input"
-                  aria-label="Buscar rutas por código o nombre"
+                  aria-label="Buscar rutas por nombre, origen o destino"
               />
             </div>
 
@@ -129,31 +161,33 @@ export default function Routes() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="font-semibold text-foreground">CÓDIGO</TableHead>
                   <TableHead className="font-semibold text-foreground">NOMBRE</TableHead>
-                  <TableHead className="font-semibold text-foreground">DESCRIPCIÓN</TableHead>
+                  <TableHead className="font-semibold text-foreground">ORIGEN</TableHead>
+                  <TableHead className="font-semibold text-foreground">DESTINO</TableHead>
+                  <TableHead className="font-semibold text-foreground">DURACIÓN</TableHead>
                   <TableHead className="font-semibold text-foreground text-right">ACCIONES</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         Cargando rutas...
                       </TableCell>
                     </TableRow>
                 ) : filteredRoutes.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         {searchTerm ? "No se encontraron rutas que coincidan con tu búsqueda." : "No hay rutas registradas."}
                       </TableCell>
                     </TableRow>
                 ) : (
                     filteredRoutes.map((route) => (
                         <TableRow key={route.id} className="hover:bg-muted/20">
-                          <TableCell className="font-medium text-foreground">{route.codigo || `R${route.id}`}</TableCell>
-                          <TableCell className="text-foreground">{route.nombre}</TableCell>
-                          <TableCell className="text-foreground">{route.description || `${route.origen} - ${route.destino}`}</TableCell>
+                          <TableCell className="font-medium text-foreground">{route.nombre}</TableCell>
+                          <TableCell className="text-foreground">{route.origen || 'N/A'}</TableCell>
+                          <TableCell className="text-foreground">{route.destino || 'N/A'}</TableCell>
+                          <TableCell className="text-foreground">{route.duracionEnMinutos ? `${route.duracionEnMinutos} min` : 'N/A'}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-2 justify-end">
                               <Button
@@ -190,7 +224,7 @@ export default function Routes() {
                                       </AlertDialogTitle>
                                     </div>
                                     <AlertDialogDescription className="text-muted-foreground">
-                                      ¿Desea eliminar la ruta {route.codigo} - {route.nombre}?
+                                      ¿Desea eliminar la ruta {route.nombre}?
                                       <br />
                                       <span className="text-destructive font-medium">
                                   Esta acción no se puede deshacer.

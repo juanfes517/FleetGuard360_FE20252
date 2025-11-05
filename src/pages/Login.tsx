@@ -4,21 +4,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Layout } from "@/components/layout/Layout";
-import { Truck, User, Lock, Eye, EyeOff } from "lucide-react";
+import { Truck, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import api, { saveAuth } from "@/services/api";
+import { saveAuth } from "@/services/api";
+
+const API_BASE_URL = "https://fabricaescuela-2025-2.onrender.com/api";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [formData, setFormData] = useState({
-    username: "",
+    correo: "",
     password: ""
   });
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({
-    username: false,
+    correo: false,
     password: false
   });
   const navigate = useNavigate();
@@ -27,73 +30,88 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setFieldErrors({ username: false, password: false });
+    setFieldErrors({ correo: false, password: false });
 
     // Validación: campos vacíos
-    if (!formData.username || !formData.password) {
-      setError("Se debe ingresar usuario y contraseña.");
+    if (!formData.correo || !formData.password) {
+      setError("Se debe ingresar correo y contraseña.");
       setFieldErrors({
-        username: !formData.username,
+        correo: !formData.correo,
         password: !formData.password
       });
       return;
     }
 
-    // Validación: cédula solo números
-    if (!/^\d+$/.test(formData.username)) {
-      setError("La cédula debe contener solo números.");
-      setFieldErrors({ username: true, password: false });
-      return;
-    }
-
     setIsLoading(true);
 
-    // En modo desarrollo evitamos llamar al backend inexistente
-    if (import.meta.env.DEV) {
-      const isDevDriver = formData.username === "999999999" && formData.password === "asdasd";
-      const mockRole = isDevDriver || formData.username.toLowerCase().includes("driver") ? "CONDUCTOR" : "ADMIN";
-      const mockResponse = {
-        token: "dev-token",
-        correo: `${formData.username || "dev-user"}@momentumfleet.test`,
-        rol: mockRole,
-      } as const;
-
-      saveAuth(mockResponse.token, mockResponse.correo, mockResponse.rol);
-
-      toast({
-        title: "Sesión simulada",
-        description: "Modo desarrollo activado. Accediendo sin backend.",
+    try {
+      // Paso 1: Llamar al endpoint de login para obtener el código de verificación
+      const loginResponse = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          correo: formData.correo,
+          password: formData.password
+        })
       });
 
-      navigate(mockResponse.rol === "CONDUCTOR" ? "/driver-dashboard" : "/dashboard");
-      setIsLoading(false);
-      return;
-    }
+      if (!loginResponse.ok) {
+        const errorData = await loginResponse.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al iniciar sesión");
+      }
 
-    try {
-      // ✅ Llamada REAL al backend
-      const response = await api.post<{
+      const loginData = await loginResponse.json() as {
+        mensaje: string;
+        codigo: string;
+      };
+
+      // Mostrar mensaje de que se envió el código
+      toast({
+        title: "Código de verificación enviado",
+        description: loginData.mensaje || "Verificando código automáticamente...",
+      });
+
+      setIsLoading(false);
+      setIsVerifying(true);
+
+      // Paso 2: Automáticamente verificar el código recibido
+      const verifyResponse = await fetch(`${API_BASE_URL}/auth/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          correo: formData.correo,
+          codigo: loginData.codigo
+        })
+      });
+
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al verificar el código");
+      }
+
+      const verifyData = await verifyResponse.json() as {
         token: string;
         correo: string;
         rol: string;
         mensaje: string;
-      }>('/auth/login-cedula', {
-        cedula: formData.username,
-        password: formData.password
-      });
+      };
 
       // Guardar autenticación
-      saveAuth(response.token, response.correo, response.rol);
+      saveAuth(verifyData.token, verifyData.correo, verifyData.rol);
 
       toast({
         title: "Sesión iniciada exitosamente",
-        description: "Bienvenido a Momentum Fleet",
+        description: verifyData.mensaje || "Bienvenido a Momentum Fleet",
       });
 
       // Redirigir según el rol
-      if (response.rol === 'ADMIN') {
+      if (verifyData.rol === 'ADMIN' || verifyData.rol === 'ADMINISTRADOR') {
         navigate("/dashboard");
-      } else if (response.rol === 'CONDUCTOR') {
+      } else if (verifyData.rol === 'CONDUCTOR') {
         navigate("/driver-dashboard");
       } else {
         navigate("/dashboard");
@@ -101,10 +119,10 @@ export default function Login() {
 
     } catch (error: any) {
       console.error('Error de login:', error);
-      setError(error.message || "Usuario o contraseña son incorrectos.");
-      setFieldErrors({ username: true, password: true });
-    } finally {
+      setError(error.message || "Error al iniciar sesión. Verifique sus credenciales.");
+      setFieldErrors({ correo: true, password: true });
       setIsLoading(false);
+      setIsVerifying(false);
     }
   };
 
@@ -129,28 +147,25 @@ export default function Login() {
               {/* Login Form */}
               <form onSubmit={handleSubmit} className="space-y-6" noValidate>
                 <div className="space-y-2">
-                  <Label htmlFor="username" className="text-card-foreground font-medium">
-                    Cédula
+                  <Label htmlFor="correo" className="text-card-foreground font-medium">
+                    Correo Electrónico
                   </Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                     <Input
-                        id="username"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="Ej. 1234567890"
-                        value={formData.username}
+                        id="correo"
+                        type="email"
+                        placeholder="usuario@ejemplo.com"
+                        value={formData.correo}
                         onChange={(e) => {
-                          // Solo permitir números
-                          const value = e.target.value.replace(/\D/g, '');
-                          setFormData({ ...formData, username: value });
-                          setFieldErrors({ ...fieldErrors, username: false });
+                          setFormData({ ...formData, correo: e.target.value });
+                          setFieldErrors({ ...fieldErrors, correo: false });
                           setError("");
                         }}
-                        className={`pl-10 bg-input ${fieldErrors.username ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
+                        className={`pl-10 bg-input ${fieldErrors.correo ? 'border-destructive focus-visible:ring-destructive' : 'border-border'}`}
                         aria-describedby={error ? "login-error" : undefined}
-                        aria-invalid={fieldErrors.username ? "true" : "false"}
-                        autoComplete="username"
+                        aria-invalid={fieldErrors.correo ? "true" : "false"}
+                        autoComplete="email"
                         required
                     />
                   </div>
@@ -198,10 +213,14 @@ export default function Login() {
                 <Button
                     type="submit"
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3"
-                    disabled={isLoading}
+                    disabled={isLoading || isVerifying}
                     aria-describedby={error ? "login-error" : undefined}
                 >
-                  {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
+                  {isVerifying 
+                    ? "Verificando código..." 
+                    : isLoading 
+                    ? "Iniciando sesión..." 
+                    : "Iniciar Sesión"}
                 </Button>
 
                 {error && (

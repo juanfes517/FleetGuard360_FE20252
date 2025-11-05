@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { conductoresAPI } from "@/services/api";
+import { getAuthData } from "@/services/api";
+
+const API_BASE_URL = "https://fabricaescuela-2025-2.onrender.com/api";
 
 interface CreateDriverModalProps {
   open: boolean;
@@ -14,7 +16,6 @@ interface CreateDriverModalProps {
 
 export const CreateDriverModal = ({ open, onOpenChange, onDriverCreated }: CreateDriverModalProps) => {
   const [formData, setFormData] = useState({
-    cedula: "",
     nombreCompleto: "",
     email: "",
     telefono: "",
@@ -22,44 +23,81 @@ export const CreateDriverModal = ({ open, onOpenChange, onDriverCreated }: Creat
     password: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validación básica
-    if (!formData.cedula || !formData.nombreCompleto || !formData.email || !formData.password) {
+    if (!formData.nombreCompleto || !formData.email || !formData.password) {
       toast({
         title: "Campos requeridos",
-        description: "Por favor complete al menos: cédula, nombre, email y contraseña.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validar que cédula sea solo números
-    if (!/^\d+$/.test(formData.cedula)) {
-      toast({
-        title: "Cédula inválida",
-        description: "La cédula debe contener solo números.",
+        description: "Por favor complete: nombre, correo electrónico y contraseña.",
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
+    setIsCreatingUser(true);
 
     try {
-      // ✅ Llamada REAL al backend
-      await conductoresAPI.create({
-        cedula: formData.cedula,
-        nombreCompleto: formData.nombreCompleto,
-        email: formData.email,
-        telefono: formData.telefono || "N/A",
-        licencia: formData.licencia || "N/A",
-        correo: formData.email, // Backend espera ambos
-        // El backend creará el usuario automáticamente
+      // Paso 1: Crear el usuario
+      const authData = getAuthData();
+      const token = authData.token;
+
+      const usuarioResponse = await fetch(`${API_BASE_URL}/usuarios`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          correo: formData.email,
+          password: formData.password, // El backend debería hashearlo
+          rol: "CONDUCTOR"
+        })
       });
+
+      if (!usuarioResponse.ok) {
+        const errorData = await usuarioResponse.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al crear el usuario");
+      }
+
+      const usuarioCreado = await usuarioResponse.json() as {
+        id: number;
+        correo: string;
+        password: string;
+        rol: string;
+      };
+
+      setIsCreatingUser(false);
+
+      // Paso 2: Crear el conductor usando la información del usuario creado
+      const conductorResponse = await fetch(`${API_BASE_URL}/conductores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          nombreCompleto: formData.nombreCompleto,
+          licencia: formData.licencia || "",
+          telefono: formData.telefono || "",
+          usuario: {
+            id: usuarioCreado.id,
+            correo: usuarioCreado.correo,
+            password: usuarioCreado.password,
+            rol: usuarioCreado.rol
+          }
+        })
+      });
+
+      if (!conductorResponse.ok) {
+        const errorData = await conductorResponse.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al crear el conductor");
+      }
 
       toast({
         title: "Conductor registrado",
@@ -68,7 +106,6 @@ export const CreateDriverModal = ({ open, onOpenChange, onDriverCreated }: Creat
 
       // Limpiar formulario
       setFormData({
-        cedula: "",
         nombreCompleto: "",
         email: "",
         telefono: "",
@@ -88,12 +125,12 @@ export const CreateDriverModal = ({ open, onOpenChange, onDriverCreated }: Creat
       });
     } finally {
       setIsLoading(false);
+      setIsCreatingUser(false);
     }
   };
 
   const handleCancel = () => {
     setFormData({
-      cedula: "",
       nombreCompleto: "",
       email: "",
       telefono: "",
@@ -117,25 +154,6 @@ export const CreateDriverModal = ({ open, onOpenChange, onDriverCreated }: Creat
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-            <div className="space-y-2">
-              <Label htmlFor="cedula" className="text-foreground font-medium">
-                Cédula <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                  id="cedula"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="Ej. 1234567890"
-                  value={formData.cedula}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, ''); // Solo números
-                    setFormData({ ...formData, cedula: value });
-                  }}
-                  className="bg-input border-border"
-                  required
-              />
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="nombreCompleto" className="text-foreground font-medium">
                 Nombre Completo <span className="text-destructive">*</span>
@@ -227,7 +245,11 @@ export const CreateDriverModal = ({ open, onOpenChange, onDriverCreated }: Creat
                   disabled={isLoading}
                   className="flex-1 bg-primary hover:bg-primary-hover text-primary-foreground"
               >
-                {isLoading ? "Guardando..." : "Guardar"}
+                {isCreatingUser 
+                  ? "Creando usuario..." 
+                  : isLoading 
+                  ? "Creando conductor..." 
+                  : "Guardar"}
               </Button>
             </div>
           </form>

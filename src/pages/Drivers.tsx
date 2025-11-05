@@ -9,16 +9,21 @@ import { CreateDriverModal } from "@/components/modals/CreateDriverModal";
 import { EditDriverModal } from "@/components/modals/EditDriverModal";
 import { Search, Plus, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { conductoresAPI } from "@/services/api";
+import { getAuthData } from "@/services/api";
+
+const API_BASE_URL = "https://fabricaescuela-2025-2.onrender.com/api";
 
 interface Driver {
   id: number;
-  cedula: string;
   nombreCompleto: string;
-  username?: string;
-  email: string;
-  telefono?: string;
-  licencia?: string;
+  licencia: string;
+  telefono: string;
+  usuario: {
+    id: number;
+    correo: string;
+    password: string;
+    rol: string;
+  };
 }
 
 export default function Drivers() {
@@ -38,7 +43,23 @@ export default function Drivers() {
   const loadDrivers = async () => {
     try {
       setLoading(true);
-      const data = await conductoresAPI.getAll();
+      const authData = getAuthData();
+      const token = authData.token;
+
+      const response = await fetch(`${API_BASE_URL}/conductores`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al cargar conductores");
+      }
+
+      const data = await response.json() as Driver[];
       setDrivers(data);
     } catch (error: any) {
       console.error('Error cargando conductores:', error);
@@ -53,10 +74,10 @@ export default function Drivers() {
   };
 
   const filteredDrivers = drivers.filter(driver =>
-      driver.cedula?.includes(searchTerm) ||
       driver.nombreCompleto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      driver.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      driver.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      driver.usuario?.correo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      driver.licencia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      driver.telefono?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleEdit = (driver: Driver) => {
@@ -64,12 +85,27 @@ export default function Drivers() {
     setEditModalOpen(true);
   };
 
-  const handleDelete = async (driverId: number, username: string) => {
+  const handleDelete = async (driverId: number, nombreCompleto: string) => {
     try {
-      await conductoresAPI.delete(driverId);
+      const authData = getAuthData();
+      const token = authData.token;
+
+      const response = await fetch(`${API_BASE_URL}/conductores/${driverId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al eliminar el conductor");
+      }
+
       toast({
         title: "Conductor eliminado",
-        description: `El conductor ${username} ha sido eliminado del sistema.`,
+        description: `El conductor ${nombreCompleto} ha sido eliminado del sistema.`,
         variant: "destructive",
       });
       loadDrivers(); // Recargar lista
@@ -107,7 +143,7 @@ export default function Drivers() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 bg-input"
-                  aria-label="Buscar conductores por cédula, usuario o correo"
+                  aria-label="Buscar conductores por nombre, correo, licencia o teléfono"
               />
             </div>
 
@@ -135,9 +171,9 @@ export default function Drivers() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="font-semibold text-foreground">CÉDULA</TableHead>
                   <TableHead className="font-semibold text-foreground">NOMBRE</TableHead>
                   <TableHead className="font-semibold text-foreground">CORREO</TableHead>
+                  <TableHead className="font-semibold text-foreground">LICENCIA</TableHead>
                   <TableHead className="font-semibold text-foreground">TELÉFONO</TableHead>
                   <TableHead className="font-semibold text-foreground text-right">ACCIONES</TableHead>
                 </TableRow>
@@ -158,9 +194,9 @@ export default function Drivers() {
                 ) : (
                     filteredDrivers.map((driver) => (
                         <TableRow key={driver.id} className="hover:bg-muted/20">
-                          <TableCell className="font-medium text-foreground">{driver.cedula}</TableCell>
-                          <TableCell className="text-foreground">{driver.nombreCompleto || driver.username}</TableCell>
-                          <TableCell className="text-foreground">{driver.email}</TableCell>
+                          <TableCell className="font-medium text-foreground">{driver.nombreCompleto}</TableCell>
+                          <TableCell className="text-foreground">{driver.usuario?.correo || 'N/A'}</TableCell>
+                          <TableCell className="text-foreground">{driver.licencia || 'N/A'}</TableCell>
                           <TableCell className="text-foreground">{driver.telefono || 'N/A'}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-2 justify-end">
@@ -210,7 +246,7 @@ export default function Drivers() {
                                       Cancelar
                                     </AlertDialogCancel>
                                     <AlertDialogAction
-                                        onClick={() => handleDelete(driver.id, driver.nombreCompleto || driver.username || '')}
+                                        onClick={() => handleDelete(driver.id, driver.nombreCompleto)}
                                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     >
                                       Eliminar
@@ -244,7 +280,7 @@ export default function Drivers() {
         <EditDriverModal
             open={editModalOpen}
             onOpenChange={setEditModalOpen}
-            driver={selectedDriver}
+            driver={selectedDriver as any}
             onDriverUpdated={loadDrivers}
         />
       </Layout>

@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { rutasAPI } from "@/services/api";
+import { getAuthData } from "@/services/api";
+
+const API_BASE_URL = "https://fabricaescuela-2025-2.onrender.com/api";
 
 interface CreateRouteModalProps {
   open: boolean;
@@ -37,12 +39,27 @@ export const CreateRouteModal = ({ open, onOpenChange, onRouteCreated }: CreateR
     setIsLoading(true);
 
     try {
-      await rutasAPI.create({
-        nombre: formData.nombre,
-        origen: formData.origen,
-        destino: formData.destino,
-        duracionEnMinutos: parseInt(formData.duracionEnMinutos)
+      const authData = getAuthData();
+      const token = authData.token;
+
+      const response = await fetch(`${API_BASE_URL}/rutas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          nombre: formData.nombre,
+          origen: formData.origen,
+          destino: formData.destino,
+          duracionEnMinutos: parseInt(formData.duracionEnMinutos)
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al crear la ruta");
+      }
 
       toast({
         title: "Ruta creada",
@@ -54,6 +71,7 @@ export const CreateRouteModal = ({ open, onOpenChange, onRouteCreated }: CreateR
       onRouteCreated?.();
 
     } catch (error: any) {
+      console.error('Error creando ruta:', error);
       toast({
         title: "Error al crear ruta",
         description: error.message || "No se pudo crear la ruta",

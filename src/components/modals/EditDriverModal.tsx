@@ -4,16 +4,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { conductoresAPI } from "@/services/api";
+import { getAuthData } from "@/services/api";
+
+const API_BASE_URL = "https://fabricaescuela-2025-2.onrender.com/api";
 
 interface Driver {
   id: number;
-  cedula: string;
-  nombreCompleto?: string;
-  username?: string;
-  email: string;
-  telefono?: string;
-  licencia?: string;
+  nombreCompleto: string;
+  licencia: string;
+  telefono: string;
+  usuario: {
+    id: number;
+    correo: string;
+    password: string;
+    rol: string;
+  };
 }
 
 interface EditDriverModalProps {
@@ -25,7 +30,6 @@ interface EditDriverModalProps {
 
 export const EditDriverModal = ({ open, onOpenChange, driver, onDriverUpdated }: EditDriverModalProps) => {
   const [formData, setFormData] = useState({
-    cedula: "",
     nombreCompleto: "",
     email: "",
     telefono: "",
@@ -37,9 +41,8 @@ export const EditDriverModal = ({ open, onOpenChange, driver, onDriverUpdated }:
   useEffect(() => {
     if (driver) {
       setFormData({
-        cedula: driver.cedula,
-        nombreCompleto: driver.nombreCompleto || driver.username || "",
-        email: driver.email,
+        nombreCompleto: driver.nombreCompleto || "",
+        email: driver.usuario?.correo || "",
         telefono: driver.telefono || "",
         licencia: driver.licencia || "",
       });
@@ -51,20 +54,10 @@ export const EditDriverModal = ({ open, onOpenChange, driver, onDriverUpdated }:
 
     if (!driver) return;
 
-    if (!formData.cedula || !formData.nombreCompleto || !formData.email) {
+    if (!formData.nombreCompleto || !formData.email) {
       toast({
         title: "Campos requeridos",
-        description: "Por favor complete al menos: cédula, nombre y email.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validar que cédula sea solo números
-    if (!/^\d+$/.test(formData.cedula)) {
-      toast({
-        title: "Cédula inválida",
-        description: "La cédula debe contener solo números.",
+        description: "Por favor complete: nombre y correo electrónico.",
         variant: "destructive",
       });
       return;
@@ -73,15 +66,32 @@ export const EditDriverModal = ({ open, onOpenChange, driver, onDriverUpdated }:
     setIsLoading(true);
 
     try {
-      // ✅ Llamada REAL al backend
-      await conductoresAPI.update(driver.id, {
-        cedula: formData.cedula,
-        nombreCompleto: formData.nombreCompleto,
-        email: formData.email,
-        correo: formData.email,
-        telefono: formData.telefono || "N/A",
-        licencia: formData.licencia || "N/A",
+      const authData = getAuthData();
+      const token = authData.token;
+
+      const response = await fetch(`${API_BASE_URL}/conductores/${driver.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          nombreCompleto: formData.nombreCompleto,
+          licencia: formData.licencia || "",
+          telefono: formData.telefono || "",
+          usuario: {
+            id: driver.usuario.id,
+            correo: formData.email,
+            password: driver.usuario.password,
+            rol: driver.usuario.rol
+          }
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.mensaje || errorData.message || "Error al actualizar el conductor");
+      }
 
       toast({
         title: "Conductor actualizado",
@@ -106,9 +116,8 @@ export const EditDriverModal = ({ open, onOpenChange, driver, onDriverUpdated }:
   const handleCancel = () => {
     if (driver) {
       setFormData({
-        cedula: driver.cedula,
-        nombreCompleto: driver.nombreCompleto || driver.username || "",
-        email: driver.email,
+        nombreCompleto: driver.nombreCompleto || "",
+        email: driver.usuario?.correo || "",
         telefono: driver.telefono || "",
         licencia: driver.licencia || "",
       });
@@ -130,24 +139,6 @@ export const EditDriverModal = ({ open, onOpenChange, driver, onDriverUpdated }:
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-            <div className="space-y-2">
-              <Label htmlFor="edit-cedula" className="text-foreground font-medium">
-                Cédula <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                  id="edit-cedula"
-                  type="text"
-                  inputMode="numeric"
-                  value={formData.cedula}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '');
-                    setFormData({ ...formData, cedula: value });
-                  }}
-                  className="bg-input border-border"
-                  required
-              />
-            </div>
-
             <div className="space-y-2">
               <Label htmlFor="edit-nombreCompleto" className="text-foreground font-medium">
                 Nombre Completo <span className="text-destructive">*</span>
