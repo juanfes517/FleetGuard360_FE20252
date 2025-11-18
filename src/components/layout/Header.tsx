@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { UserMenu } from "@/components/ui/UserMenu";
-import { Truck } from "lucide-react";
+import { Accessibility, Truck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { useAccessibilityMode } from "@/context/AccessibilityContext";
 
 interface HeaderProps {
   showLogin?: boolean;
@@ -9,6 +10,7 @@ interface HeaderProps {
 
 export const Header = ({ showLogin = true }: HeaderProps) => {
   const location = useLocation();
+  const { enabled: accessibilityEnabled, toggle: toggleAccessibility } = useAccessibilityMode();
   const isLoggedIn = !showLogin || !["/", "/login"].includes(location.pathname);
   
   // Simular rol basado en la ruta actual
@@ -41,7 +43,22 @@ export const Header = ({ showLogin = true }: HeaderProps) => {
             <Link to="/login">Login</Link>
           </Button>
         ) : isLoggedIn ? (
-          <UserMenu userName={userName} userRole={userRole} />
+          <div className="flex items-center gap-4">
+            <Button
+              variant={accessibilityEnabled ? "default" : "outline"}
+              onClick={toggleAccessibility}
+              aria-pressed={accessibilityEnabled}
+              aria-label={accessibilityEnabled ? "Desactivar modo accesible" : "Activar modo accesible"}
+              title={accessibilityEnabled ? "Desactivar modo accesible" : "Activar modo accesible"}
+              className="h-10 w-10 p-0 flex items-center justify-center"
+            >
+              <span className="sr-only">
+                {accessibilityEnabled ? "Desactivar modo accesible" : "Activar modo accesible"}
+              </span>
+              <Accessibility className="h-5 w-5" aria-hidden="true" />
+            </Button>
+            <UserMenu userName={userName} userRole={userRole} />
+          </div>
         ) : null}
       </div>
     </header>
